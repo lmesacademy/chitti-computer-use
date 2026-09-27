@@ -162,6 +162,14 @@ public enum PermissionSupport {
         _ = AXIsProcessTrustedWithOptions(options)
     }
 
+    /// Register with Screen Recording and show the system prompt. Opening the
+    /// Settings pane alone is not enough: an app only appears in that list once
+    /// it has asked, so a fresh build (or a re-signed one) was missing from it
+    /// and had to be added by hand with +.
+    public static func requestScreenRecordingPrompt() {
+        _ = CGRequestScreenCaptureAccess()
+    }
+
     static func preferredPermissionAppBundleURL(
         preferredInstalledBundleURL: URL?,
         runningBundleURL: URL?,

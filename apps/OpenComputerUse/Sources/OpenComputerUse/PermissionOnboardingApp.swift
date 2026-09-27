@@ -103,6 +103,8 @@ extension PermissionWindowController: PermissionContentControllerDelegate {
     ) {
         if permission == .accessibility {
             PermissionSupport.requestAccessibilityPrompt()
+        } else if permission == .screenRecording {
+            PermissionSupport.requestScreenRecordingPrompt()
         }
 
         PermissionSupport.openSystemSettings(for: permission)
