@@ -265,8 +265,14 @@ enum SnapshotBuilder {
             recovered = runningApplication.activate(options: [.activateAllWindows]) || recovered
         }
 
-        if let bundleIdentifier = app.bundleIdentifier {
-            recovered = openBundleIdentifier(bundleIdentifier) || recovered
+        // Reopen the bundle that is RUNNING, by its path. `open -b <id>` asks
+        // Launch Services for whichever copy it prefers, so with two copies
+        // sharing an id (an installed app and a dev build of it) it launched
+        // the other one, and every later call raced two processes.
+        if let bundleURL = NSRunningApplication(processIdentifier: app.pid)?.bundleURL {
+            recovered = openBundle(arguments: [bundleURL.path]) || recovered
+        } else if let bundleIdentifier = app.bundleIdentifier {
+            recovered = openBundle(arguments: ["-b", bundleIdentifier]) || recovered
         }
 
         if let window = preferredWindow ?? firstAnyWindow(for: appElement) {
@@ -283,10 +289,10 @@ enum SnapshotBuilder {
         return recovered
     }
 
-    private static func openBundleIdentifier(_ bundleIdentifier: String) -> Bool {
+    private static func openBundle(arguments: [String]) -> Bool {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/usr/bin/open")
-        process.arguments = ["-b", bundleIdentifier]
+        process.arguments = arguments
         process.standardOutput = Pipe()
         process.standardError = Pipe()
 

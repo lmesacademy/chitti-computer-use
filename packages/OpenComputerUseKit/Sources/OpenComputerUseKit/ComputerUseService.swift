@@ -643,7 +643,8 @@ public final class ComputerUseService {
                             button: button,
                             clickCount: clickCount,
                             includeNearbyHitTesting: false,
-                            allowActivationFallback: false
+                            allowActivationFallback: false,
+                            requiredPoint: point
                         ) {
                             handled = true
                             break
@@ -1027,7 +1028,8 @@ public final class ComputerUseService {
         button: MouseButtonKind,
         clickCount: Int,
         includeNearbyHitTesting: Bool,
-        allowActivationFallback: Bool
+        allowActivationFallback: Bool,
+        requiredPoint: CGPoint? = nil
     ) throws -> Bool {
         let preferContainingWebRowAXClick = shouldPreferContainingWebRowAXClick(record, in: snapshot)
         debugClickDecision("record=\(clickDebugDescription(record)) preferContainingWebRowAXClick=\(preferContainingWebRowAXClick)")
@@ -1046,7 +1048,7 @@ public final class ComputerUseService {
                 return true
             }
 
-            for candidate in descendantClickCandidates(for: record, snapshot: snapshot) {
+            for candidate in descendantClickCandidates(for: record, snapshot: snapshot, requiredPoint: requiredPoint) {
                 if try performPreferredClick(on: candidate, button: button, clickCount: clickCount) {
                     debugClickDecision("handled by descendant \(clickDebugDescription(candidate))")
                     pauseBeforeReadBack(0.15)
@@ -1259,7 +1261,8 @@ public final class ComputerUseService {
     private func descendantClickCandidates(
         for record: ElementRecord,
         snapshot: AppSnapshot,
-        sideActionScope: ElementRecord? = nil
+        sideActionScope: ElementRecord? = nil,
+        requiredPoint: CGPoint? = nil
     ) -> [ElementRecord] {
         guard let element = record.element else {
             return []
@@ -1269,6 +1272,13 @@ public final class ComputerUseService {
         return descendantClickCandidates(of: element, windowBounds: snapshot.windowBounds)
             .filter { candidate in
                 !isLikelySyntheticSideAction(candidate, in: sideActionParent)
+                    // A descendant is only a stand-in for the click when it is
+                    // actually under it, and never the window's own traffic
+                    // lights: pressing "the smallest pressable child" of a window
+                    // whose content has no AX node at the point used to press
+                    // its close button, destroying the window.
+                    && !isWindowChromeControl(subrole: candidate.element.flatMap { stringValue(of: $0, attribute: kAXSubroleAttribute) })
+                    && descendantCandidateIsUnderPoint(frame: candidate.localFrame, point: requiredPoint)
             }
             .sorted { lhs, rhs in
                 let lhsPriority = clickPriority(for: lhs)

@@ -4,6 +4,29 @@ import XCTest
 @testable import OpenComputerUseKit
 
 final class OpenComputerUseKitTests: XCTestCase {
+    /// An x/y click on a GPU-drawn app (no AX node under the point) used to
+    /// fall back to "the smallest pressable descendant of the window" — its
+    /// close button — and destroy the window.
+    func testWindowTitleBarControlsAreNeverClickStandIns() {
+        for subrole in ["AXCloseButton", "AXMinimizeButton", "AXZoomButton", "AXFullScreenButton"] {
+            XCTAssertTrue(isWindowChromeControl(subrole: subrole), subrole)
+        }
+        XCTAssertFalse(isWindowChromeControl(subrole: nil))
+        XCTAssertFalse(isWindowChromeControl(subrole: "AXTabButton"))
+    }
+
+    func testCoordinateClickStandInMustBeUnderThePoint() {
+        let row = CGRect(x: 100, y: 330, width: 300, height: 30)
+        XCTAssertTrue(descendantCandidateIsUnderPoint(frame: row, point: CGPoint(x: 189, y: 345)))
+        // A button elsewhere in the window is not what the caller pointed at.
+        let backButton = CGRect(x: 220, y: 10, width: 24, height: 24)
+        XCTAssertFalse(descendantCandidateIsUnderPoint(frame: backButton, point: CGPoint(x: 189, y: 345)))
+        // A frameless element cannot be shown to be under the point.
+        XCTAssertFalse(descendantCandidateIsUnderPoint(frame: nil, point: CGPoint(x: 1, y: 1)))
+        // An element_index click has no point and keeps the old behaviour.
+        XCTAssertTrue(descendantCandidateIsUnderPoint(frame: nil, point: nil))
+        XCTAssertTrue(descendantCandidateIsUnderPoint(frame: backButton, point: nil))
+    }
     func testAppAgentSocketFileNamePreservesLegacyDefault() {
         XCTAssertEqual(openComputerUseAppAgentSocketFileName(namespace: nil), "open-computer-use-agent.sock")
         XCTAssertEqual(openComputerUseAppAgentSocketFileName(namespace: "   "), "open-computer-use-agent.sock")
